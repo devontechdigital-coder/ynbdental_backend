@@ -10847,7 +10847,7 @@ lng,stats,certifications,stories,educationList,room
       updateFields.Doc5 = Doc5[0].path.replace(/\\/g, "/").replace(/^public\//, "");
     }
      if (Doc6 && Doc6[0]) {
-      updateFields.Doc3 = Doc6[0].path.replace(/\\/g, "/").replace(/^public\//, "");
+      updateFields.Doc6 = Doc6[0].path.replace(/\\/g, "/").replace(/^public\//, "");
     }
      if (Doc7 && Doc7[0]) {
       updateFields.Doc7 = Doc7[0].path.replace(/\\/g, "/").replace(/^public\//, "");
