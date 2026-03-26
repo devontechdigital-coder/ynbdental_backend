@@ -834,6 +834,7 @@ export const getRemoveData = async (req, res) => {
 
 
 
+ 
 export const SignupUserType = async (req, res) => {
   try {
     const {
@@ -1268,6 +1269,7 @@ export const UsergetAllCategories = async (req, res) => {
   }
 };
 
+ 
 export const UsergetAllProducts = async (req, res) => {
   try {
     const { type } = req.query; // Get `type` from query string
@@ -1288,7 +1290,7 @@ export const UsergetAllProducts = async (req, res) => {
 
     const products = await productModel.find(
       query,
-      "_id title slug regularPrice salePrice brandName oneto7 eightto14 fivto30 monthto3month threemonthto6month Rentalgst gst modelNo stock reStock serialNumber protype"
+      "_id title slug regularPrice salePrice brandName oneto7 eightto14 fivto30 monthto3month threemonthto6month Rentalgst gst modelNo stock reStock serialNumber protype  department subdepartment "
     );
 
     if (!products || products.length === 0) {
@@ -2984,7 +2986,82 @@ export const DoctorQueeViewController = async (req, res) => {
   }
 };
 
+ 
 
+export const userOrdersViewQueeController = async (req, res) => {
+  try {
+    const order = await orderModel
+      .findById(req.params.id)
+      .populate("hosId", "username profile")
+      .lean();
+
+    if (!order) {
+      return res.status(200).json({
+        success: false,
+        message: "Order Not Found",
+      });
+    }
+
+    const todayDate = new Date().toISOString().split("T")[0];
+    const doctorOrdersMap = {};
+
+    for (let product of order.addProduct) {
+
+      if (!product.employeeId) {
+        product.position = null;
+        continue;
+      }
+
+      const doctorId = product.employeeId;
+console.log('doctorId',doctorId);
+
+      if (!doctorOrdersMap[doctorId]) {
+        const orders = await orderModel.find({
+          hosId: order.hosId._id,
+          // status: 0,
+       "addProduct.employeeId": doctorId,
+      "addProduct.date": todayDate,
+      "addProduct.status": 0,
+            // addProduct: {
+            //   $elemMatch: {
+            //     // "employeeId": doctorId,   // ✅ STRING MATCH
+            //     // date:todayDate
+            //    title: "CT Scan Brain",
+            //   }
+            // }
+        })
+        .sort({ createdAt: 1 })
+        .select("_id");
+ 
+ 
+        doctorOrdersMap[doctorId] = orders;
+      }
+
+      const orders = doctorOrdersMap[doctorId];
+
+      const index = orders.findIndex(
+        o => o._id.toString() === order._id.toString()
+      );
+
+      product.position = index !== -1 ? index + 1 : null;
+    }
+
+    return res.status(200).json({
+      success: true,
+      order,
+      todayDate
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({
+      success: false,
+      message: "Queue Error",
+      error,
+    });
+  }
+};
+ 
 
 export const AddCart = async (req, res) => {
   try {
@@ -7512,6 +7589,176 @@ export const getVendorById = async (req, res) => {
     });
   }
 };
+
+ 
+ const timeToMinutes = (t) => {
+  if (!t) return null;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const convertTo24Hour = (t) => {
+  if (!t) return t;
+  if (t.includes("AM") || t.includes("PM")) {
+    const [time, mod] = t.split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (mod === "PM" && h !== 12) h += 12;
+    if (mod === "AM" && h === 12) h = 0;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+  return t;
+};
+
+const isOverlap = (slotOpen, slotClose, orderStart, orderEnd) => {
+  return orderStart < slotClose && orderEnd > slotOpen;
+};
+
+const getDayNameUTC = (date) => {
+  const d = new Date(date);
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  return days[d.getUTCDay()];
+};
+
+const getDateKeyUTC = (date) => {
+  const d = new Date(date);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+};
+
+const formatLabelUTC = (date) => {
+  const d = new Date(date);
+  const daysShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return `${daysShort[d.getUTCDay()]}, ${d.getUTCDate()}`;
+};
+
+export const getVendorSlotById = async (req, res) => {
+  try {
+    const docId = req.query.doc || null;
+    const days = req.query.days || 10;
+    const hosId = req.query.hos || null; // ✅ if provided, filter only this hosId
+
+    const daysCount = parseInt(days, 10) || 10;
+
+    if (!docId) {
+      return res.status(400).json({
+        success: false,
+        message: "doc (doctor/vendor id) is required in query"
+      });
+    }
+
+    const vendor = await userModel.findOne({ _id: docId, type: 1 }).lean();
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const schedule = vendor.schedule || {};
+
+    // ✅ Optional strict check: if hosId provided but not exists
+    if (hosId && !schedule[hosId]) {
+      return res.status(404).json({
+        success: false,
+        message: "hosId not found in vendor schedule"
+      });
+    }
+
+    // Build next N days range (UTC)
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + daysCount); // exclusive
+
+    // Fetch bookings only for next N days
+    const bookings = await orderModel.find({
+      employeeId: docId,
+      status: { $in: [0, 1] },
+      date: { $gte: start, $lt: end }
+    }).lean();
+
+    // bookingMap by DATE
+    const bookingMapByDate = {}; // { "YYYY-MM-DD": [{start,end}] }
+
+    bookings.forEach((order) => {
+      const dateKey = getDateKeyUTC(order.date);
+      const orderStart = timeToMinutes(order.Ltime);
+      const orderEnd = timeToMinutes(order.Etime);
+
+      if (!dateKey || orderStart === null || orderEnd === null) return;
+
+      bookingMapByDate[dateKey] = bookingMapByDate[dateKey] || [];
+      bookingMapByDate[dateKey].push({ start: orderStart, end: orderEnd });
+    });
+
+    const nextDaysData = [];
+
+    for (let i = 0; i < daysCount; i++) {
+      const d = new Date(start);
+      d.setUTCDate(start.getUTCDate() + i);
+
+      const dateKey = getDateKeyUTC(d);
+      const dayName = getDayNameUTC(d);
+      const label = formatLabelUTC(d);
+
+      const dayBookings = bookingMapByDate[dateKey] || [];
+
+      const scheduleForDay = {};
+
+      // ✅ Filter hosId if provided, else include all
+      const hosIdsToUse = hosId ? [hosId] : Object.keys(schedule);
+
+      hosIdsToUse.forEach((hid) => {
+        const daysObj = schedule[hid] || {};
+        const dayData = daysObj[dayName];
+
+        if (!dayData) return;
+        if (dayData.isClosed === "true") return;
+
+        scheduleForDay[hid] = {
+          ...dayData,
+          slots: (dayData.slots || []).map((slot) => {
+            const slotOpen = timeToMinutes(convertTo24Hour(slot.open));
+            const slotClose = timeToMinutes(convertTo24Hour(slot.close));
+
+            let booked = 0;
+            dayBookings.forEach((b) => {
+              if (isOverlap(slotOpen, slotClose, b.start, b.end)) {
+                booked++;
+              }
+            });
+
+            return {
+              ...slot,
+              patients: Math.max(Number(slot.patients) - booked, 0)
+            };
+          })
+        };
+      });
+
+      nextDaysData.push({
+        date: dateKey,
+        label,     // "Mon, 2"
+        dayName,   // "Monday"
+        schedule: scheduleForDay
+      });
+    }
+
+    return res.status(200).json({
+      message: "Vendor slots fetched successfully",
+      success: true,
+      schedule: nextDaysData
+    });
+
+  } catch (error) {
+    return res.status(400).json({
+      message: `Error while getting slots: ${error.message}`,
+      success: false
+    });
+  }
+};
+
+
+ 
+
+
 
 export const getAllPdlanUser = async (req, res) => {
   const { id } = req.params;

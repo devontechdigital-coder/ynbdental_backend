@@ -142,10 +142,21 @@ const orderSchema = mongoose.Schema({
   appoinment: {
     type: Number,
   },
+   reschedule: {
+    type: Number,
+    default: 0,
+  },
   requirement: {
     type: String,
   },
+  subType: {
+    type: String,
+  },
   lead: {
+    type: Number,
+    default: 0,
+  },
+   step: {
     type: Number,
     default: 0,
   },
@@ -168,6 +179,11 @@ const orderSchema = mongoose.Schema({
      images: {
             type: Array,
    },
+   rescheduleHistory: {
+  type: Array,
+  default: [],
+},
+
 },
   { timestamps: true }
 );

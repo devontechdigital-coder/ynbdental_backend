@@ -937,7 +937,7 @@ export const AddAdminOrderController = async (req, res) => {
 };
 
 
-export const AddAdminBookingController = async (req, res) => {
+ export const AddAdminBookingController = async (req, res) => {
   try {
     const {
       order,
@@ -982,8 +982,8 @@ export const AddAdminBookingController = async (req, res) => {
       return `${hours.padStart(2, '0')}:${minutes}`;
     }
 
-    const Ltime = convertTo24Hour(startTime12h);   // e.g. "10:00"
-    const Etime = convertTo24Hour(endTime12h);     // e.g. "18:00"
+    const Ltime = startTime12h ? convertTo24Hour(startTime12h) : '';   // e.g. "10:00"
+    const Etime = endTime12h ? convertTo24Hour(endTime12h) : '';     // e.g. "18:00"
  
  
     // Create a proper datetime
@@ -1007,6 +1007,8 @@ export const AddAdminBookingController = async (req, res) => {
 
     // Create a new user only if UserDetails.id === 'none'
     if (UserDetails && UserDetails.id === 'none') {
+ 
+ 
       const newUser = new userModel({
         username: UserDetails.name,
         phone: UserDetails.phone,
@@ -1020,10 +1022,12 @@ export const AddAdminBookingController = async (req, res) => {
         companyAddress: UserDetails.companyAddress,
         age: UserDetails.age,
         weight: UserDetails.weight,
+        headId: hospitalId
        });
+       
 
       await newUser.save();
-      finalUserId = newUser._id;
+   
     } else {
       finalUserId = UserDetails.id;
     }
@@ -1633,7 +1637,7 @@ export const AddAdminProduct_old = async (req, res) => {
 };
  
 
-export const AddAdminProduct = async (req, res) => {
+ export const AddAdminProduct = async (req, res) => {
   try {
     const {
       title,
@@ -1663,7 +1667,10 @@ export const AddAdminProduct = async (req, res) => {
       brandName,
       modelNo,
       protype,
-      Rentalgst
+      Rentalgst,
+      department ,
+      subdepartment ,
+              
     } = req.body;
 
     if (!protype) {
@@ -1748,7 +1755,9 @@ export const AddAdminProduct = async (req, res) => {
       brandName,
       modelNo,
       protype: protype || 0,
-      Rentalgst
+      Rentalgst,
+         department ,
+      subdepartment ,
     };
 
     const newProduct = new productModel(updateproduct);
@@ -2800,302 +2809,122 @@ function extractUsernameFromChanges(changeStr) {
   return match ? match[1].trim() : '';
 }
 
+ 
 export const getAllOrderAdmin = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const searchTerm = req.query.search || "";
-    const statusFilter = req.query.status || '';
-    const notStatus = req.query.notStatus || '';
-    const productId = req.query.productId || '';
-    const type = req.query.type || '';
-    const leadtype = req.query.leadtype || '';
-    const lead = req.query.lead || null;
-    const datetype = req.query.datetype || null;
-
-
-    const overdue = req.query.overdue || ''; 
-    const startDate = req.query.startDate ? new Date(req.query.startDate) : null;
-    const endDate = req.query.endDate ? new Date(req.query.endDate) : null;
-    const start = req.query.start ? new Date(req.query.start) : null;
-    const end = req.query.end ? new Date(req.query.end) : null;
-    const userId = req.query.userId || null;
-
     const skip = (page - 1) * limit;
 
+    const {
+      search = "",
+      productId = "",
+      userId = "",
+      startDate,
+      endDate
+    } = req.query;
+
+    const statusFilter = req.query.status
+      ? req.query.status.split(",").map(Number)
+      : [];
+
+    const notStatusFilter = req.query.notStatus
+      ? req.query.notStatus.split(",").map(Number)
+      : [];
+
+    const typeFilter = req.query.type
+      ? req.query.type.split(",").map(Number)
+      : [];
+
     const query = {};
-    const appoinment = req.query.appoinment || null;
+    const orConditions = [];
 
-     // if (startDate && endDate) {
-    //   query.createdAt = { $gte: startDate, $lte: endDate };
-    // } else if (startDate) {
-    //   query.createdAt = { $gte: startDate };
-    // } else if (endDate) {
-    //   query.createdAt = { $lte: endDate };
-    // }
-
-
-    // Date range filtering based on PickupDate and ReturnDate
-if (startDate && endDate && !datetype) {
-  query.$and = [
-    { PickupDate: { $lte: endDate } },
-    { ReturnDate: { $gte: startDate } },
-  ];
-} else if (startDate) {
-  query.ReturnDate = { $gte: startDate };
-} else if (endDate) {
-  query.PickupDate = { $lte: endDate };
-}
-
-  if (start && end && !datetype) {
-      query.createdAt = { $gte: start, $lte: end };
-    } else if (start) {
-      query.createdAt = { $gte: start };
-    } else if (end) {
-      query.createdAt = { $lte: end };
+    /* ---------- SEARCH ---------- */
+    if (search) {
+      const regex = new RegExp(search, "i");
+      orConditions.push(
+        { orderId: regex },
+        { mode: regex }
+      );
     }
 
-if (datetype && (start || end)) {
-  const dateRange = {};
-  if (start) dateRange.$gte = new Date(start);
-  if (end) dateRange.$lte = new Date(end);
-
-  if (datetype === '1') {
-    // Lead Date (Ldate)
-    query.Ldate = dateRange;
-  } else if (datetype === '2') {
-    // Created At
-    query.createdAt = dateRange;
-  } else if (datetype === '3') {
-    // Follow-up Date
-    query.date = dateRange;
-  }
-}
- 
-
-    if (appoinment && appoinment.length > 0) {
-      query.appoinment = appoinment;
+    /* ---------- STATUS ---------- */
+    if (statusFilter.length || notStatusFilter.length) {
+      query.status = {};
+      if (statusFilter.length) query.status.$in = statusFilter;
+      if (notStatusFilter.length) query.status.$nin = notStatusFilter;
     }
 
-
-
-    if (statusFilter.length > 0) {
-      query.status = { $in: statusFilter.split(',').map(Number) };
+    /* ---------- TYPE ---------- */
+    if (typeFilter.length) {
+      query.type = { $in: typeFilter };
     }
 
-    if (notStatus.length > 0) {
-      query.status = { $nin: notStatus.split(',').map(Number) };
+    /* ---------- DATE ---------- */
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    if (overdue === 'true') {
-      const targetDate = new Date(); // This will be 2025-05-01
-      console.log('targetDate',targetDate)
-      query.ReturnDate = { ...query.ReturnDate, $lt: targetDate }; // upcoming
-      query.status = { $nin: 5 }; 
-    }
- 
-    
-    if (type.length > 0) {
-      query.type = { $in: type.split(',').map(Number) };
-    }
-    if (leadtype) {
-      query.leadType = leadtype;
-    }else{
-       query.$or = [
-        { leadType: { $eq: 1 } },
-        { leadType: { $exists: false } }
-      ];
-    }
-    if (lead) {
-      query.lead = lead;
-    }
-
+    /* ---------- PRODUCT ---------- */
     if (productId) {
-      query['addProduct._id'] = productId;
+      query["addProduct._id"] = productId;
     }
 
+    /* ---------- USER MATCH ---------- */
+    if (userId) {
+      const id = new mongoose.Types.ObjectId(userId);
+      orConditions.push(
+        { userId: id },
+        { employeeId: id },
+        { employeeSaleId: id },
+        { hosId: id },
+       );
+    }
 
-    
-if (userId) {
-  query.$or = [
-    { userId: userId },
-    { employeeId: userId },
-    { employeeSaleId: userId }
-  ];
-}
-    // Fetch with populate
-    const allOrders = await orderModel
+    if (orConditions.length) {
+      query.$or = orConditions;
+    }
+
+    const total = await orderModel.countDocuments(query);
+
+    const Order = await orderModel
       .find(query)
       .sort({ _id: -1 })
-      .populate({
-        path: "userId",
-        model: userModel,
-        select: "username email phone profile",
-      })
-      .populate({
-        path: "employeeId",
-        model: userModel,
-        select: "username email phone profile",
-      })
-      .populate({
-        path: "employeeSaleId",
-        model: userModel,
-        select: "username email phone profile",
-      })
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "username email phone")
+      .populate("employeeId", "username email phone")
+      .populate("employeeSaleId", "username email phone")
+      .populate("hosId", "username profile")
       .lean();
 
-    // Filter manually for searchTerm
-    const filteredOrders = allOrders.filter((order) => {
-      if (!searchTerm) return true;
-
-      const regex = new RegExp(searchTerm, 'i');
-      return (
-        regex.test(order.orderId?.toString()) ||
-        regex.test(order.mode || '') ||
-        regex.test(order.employeeId?.username || '') ||
-        regex.test(order.employeeId?.email || '') ||
-        regex.test(order.employeeId?.phone || '') ||
-        regex.test(order.employeeSaleId?.username || '') ||
-        regex.test(order.employeeSaleId?.email || '') ||
-        regex.test(order.employeeSaleId?.phone || '') ||
-        regex.test(order.userId?.phone || '') ||
-        regex.test(order.userId?.username || '') ||
-        regex.test(order.userId?.email || '')  
-      )
-    });
-
-    const paginatedOrders = filteredOrders.slice(skip, skip + limit);
-
-    if (paginatedOrders.length === 0) {
-      return res.status(404).send({
-        message: "No Order Found",
+    if (!Order.length) {
+      return res.status(404).json({
         success: false,
+        message: "No Order Found"
       });
     }
 
-    // const enrichedOrders = paginatedOrders.map((order) => {
-    //   const history = order.addHistory || [];
-    //   const nurseMap = {};
-
-    //   history.forEach((entry) => {
-    //     const isNurseChange =
-    //       entry.changes &&
-    //       entry.changes.includes("Update Employee ( Doctor / Nurse / Runner )") &&
-    //       entry.assignId;
-
-    //     if (isNurseChange) {
-    //       const key = entry.assignId;
-    //       if (!nurseMap[key]) {
-    //         nurseMap[key] = {
-    //           assignId: entry.assignId,
-    //           username: extractUsernameFromChanges(entry.changes), // helper function
-    //           workDates: new Set(),
-    //           email: '', // will fill below
-    //         };
-    //       }
-
-    //       nurseMap[key].workDates.add(entry.date);
-    //     }
-    //   });
-
-    //   const nurseStats = Object.values(nurseMap).map((nurse) => ({
-    //     assignId: nurse.assignId,
-    //     username: nurse.username,
-    //     email: '', // Optional: populate if available in users
-    //     totalDays: nurse.workDates.size,
-    //     workDates: Array.from(nurse.workDates),
-    //   }));
-
-    //   return {
-    //     ...order,
-    //     NurseStats: nurseStats.length > 0 ? nurseStats : [],
-    //   };
-    // });
-
-    const enrichedOrders = paginatedOrders.map((order) => {
-  const history = order.addHistory || [];
-  const nurseMap = {};
-
-  history.forEach((entry) => {
-    const isNurseChange =
-      entry.changes &&
-      entry.changes.includes("Update Employee ( Doctor / Nurse / Runner )") &&
-      entry.assignId;
-
-    if (isNurseChange) {
-      const key = entry.assignId;
-      if (!nurseMap[key]) {
-        nurseMap[key] = {
-          assignId: entry.assignId,
-          username: extractUsernameFromChanges(entry.changes),
-          workDates: new Set(),
-          workingDays: new Set(),
-          leaveDays: new Set(),
-          leftDay: null,
-          email: '',
-        };
-      }
-
-      // Normalize date format if needed
-      const date = entry.date;
-
-      if (entry.working === "1") {
-        nurseMap[key].workDates.add(date);
-        nurseMap[key].workingDays.add(date);
-      } else if (entry.working === "0") {
-        nurseMap[key].workDates.add(date);
-        nurseMap[key].leaveDays.add(date);
-      } else if (entry.working === "2" && !nurseMap[key].leftDay) {
-        nurseMap[key].leftDay = date;
-      }
-    }
-  });
-
-  const nurseStats = Object.values(nurseMap).map((nurse) => ({
-    assignId: nurse.assignId,
-    username: nurse.username,
-    email: '',
-    totalDays: nurse.workDates.size,
-    workingDays: Array.from(nurse.workingDays),
-    leaveDays: Array.from(nurse.leaveDays),
-    leftDay: nurse.leftDay,
-    workDates: Array.from(nurse.workDates),
-  }));
-
-  return {
-    ...order,
-    NurseStats: nurseStats.length > 0 ? nurseStats : [],
-  };
-});
-
-
-    return res.status(200).send({
-      message: "All Order list",
-      Count: filteredOrders.length,
-      currentPage: page,
-      totalPages: Math.ceil(filteredOrders.length / limit),
+    return res.status(200).json({
       success: true,
-      Order: enrichedOrders,
+      message: "All Order list",
+      Count: total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      Order
     });
 
-
-    // return res.status(200).send({
-    //   message: "All Order list",
-    //   Count: paginatedOrders.length,
-    //   currentPage: page,
-    //   totalPages: Math.ceil(filteredOrders.length / limit),
-    //   success: true,
-    //   Order: paginatedOrders,
-    // });
-
   } catch (error) {
-    return res.status(500).send({
-      message: `Error while fetching Orders: ${error.message}`,
+    return res.status(500).json({
       success: false,
-      error,
+      message: error.message,
+      error
     });
   }
 };
+
 
 
 export const getAllBookingAdmin = async (req, res) => {
@@ -7631,11 +7460,12 @@ export const AdminGetAllEmployee_last = async (req, res) => {
 };
 
  
+  
 export const AdminGetAllEmployee = async (req, res) => { 
   try {
-    const { type, filter, phone, empType, department ,headId } = req.query;
+    const { onlytype ,type, filter, phone, notemptype , empType, department ,headId ,mydepartment,subdepartment } = req.query;
 
-    if (!type) {
+    if (!type && !onlytype) {
       return res.status(200).send({
         message: "Missing required parameters.",
         success: false,
@@ -7673,6 +7503,56 @@ export const AdminGetAllEmployee = async (req, res) => {
     if (empType) {
       fillter.empType = empType;
     }
+ 
+    
+    // NOT empType filter
+if (notemptype && notemptype !== "none") {
+  let excludeTypes = [];
+
+  if (Array.isArray(notemptype)) {
+    excludeTypes = notemptype;
+  } else if (typeof notemptype === "string") {
+    excludeTypes = notemptype.split(",");
+  }
+
+  excludeTypes = excludeTypes
+    .map(t => Number(t))
+    .filter(t => !isNaN(t));
+
+  if (excludeTypes.length === 1) {
+    fillter.empType = { $ne: excludeTypes[0] };
+  } else if (excludeTypes.length > 1) {
+    fillter.empType = { $nin: excludeTypes };
+  }
+}
+
+    
+
+    if (onlytype && onlytype !== "none") {
+  let typeValues = [];
+
+  if (Array.isArray(onlytype)) {
+    // ?onlytype=1&onlytype=2
+    typeValues = onlytype;
+  } else if (typeof onlytype === "string") {
+    // ?onlytype=1,2
+    typeValues = onlytype.split(",");
+  }
+
+  // clean values (optional but recommended)
+  typeValues = typeValues
+    .map(t => t.trim())
+    .filter(t => t !== "");
+
+  if (typeValues.length === 1) {
+    // single value
+    fillter.type = typeValues[0];
+  } else if (typeValues.length > 1) {
+    // multiple values
+    fillter.type = { $in: typeValues };
+  }
+}
+
 
     if(headId){
    fillter.headId = new mongoose.Types.ObjectId(headId);
@@ -7723,7 +7603,7 @@ export const AdminGetAllEmployee = async (req, res) => {
 
     const users = await userModel.find(
       fillter,
-      "_id username email phone gender address company companyName companyGST companyAddress age weight subDepartments department schedule"
+      "_id username email phone profile gender address company companyName companyGST companyAddress age weight subDepartments department schedule hospitalMeta type empType"
     );
 
     if (!users || users.length === 0) {
@@ -7766,6 +7646,7 @@ export const AdminGetAllEmployee = async (req, res) => {
     });
   }
 };
+
 
 
 

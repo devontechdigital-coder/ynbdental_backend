@@ -132,7 +132,14 @@ const productSchema = new mongoose.Schema(
         recommended_products: {
             type: Array,
         },
-          
+
+         department: {
+            type: String,
+        },
+         subdepartment: {
+            type: Object,
+        },
+                 
         
     },
     { timestamps: true }

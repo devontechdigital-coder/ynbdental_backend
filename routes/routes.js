@@ -32,10 +32,10 @@ import {
   LoginAndVerifyOTP, updateBlogController, deleteBlogController, getBlogIdController, getBlogByIdController,CreateChatController, findUserschatController, findchatController
   , EmailVerify, postman, PaymentResponse, PaymentRequest, getProductsByFilterUser, cancelOrderUser, ViewAllZones, getProductsByHSN,AuthUserByIDHistory, AuthUserByID, updateProfileUser, SignupNewUser, LoginUserWithOTP, LoginUserWithPass, SendOTP,SignupLoginNew, SignupLoginUser, getTaxIdUser, ViewAllUserTaxes, ViewCompareByUser, applyPromoCode, getHomeLayoutData, AddWishListByUser, deleteCompareByUser, deleteWishListByUser, ViewWishListByUser, AddCompareByUser, ViewProductRating, ViewCategoryRating, AddRating, UsergetAllCategories, UsergetAllProducts, UsergetAllHomeProducts, userOrdersViewController, DoctorQueeViewController, QueeViewController, getAllAttributeUser, getProductIdUser, updateUserController, createOrderController, updateUserAndCreateOrderController, userOrdersController, getHomeData, GetAllCategoriesByParentIdController, GetAllCategoriesBySlugController
   , BuyPlanUser, GetPlanUser, getAllNurseDepartment,
-getAllNurseSkillDepartment,
+getAllNurseSkillDepartment,userOrdersViewQueeController,
 getAllNurseAttributeDepartment, HomeSendEnquire,ConsultationSendEnquire, getAllPlanCategoryController, uploadDataZone, deleteAllZones, SignupUserType, updateDetailsUser, updateDetailsUserHealth, getAllPlanUser, getProductIdUserBySlug
   , getAllVendor, getAllHospital ,getAllHospitalDotor,getAllDepartment, profileVendorImage,ApiGetKey, PaymentSuccess,PaymentBookSuccess, PaymentFail,
-  generateUserAttachPDF,CheckoutWallet ,AllPaymentWalletAdmin, AllTransactionWalletAdmin,UserPdfView, updateVendorProfileUser, paymentVerification,BookAppointmentByUser, BuyPlanAddUser, BuyPlanByUser, PayuHash, userPlanIdController, ViewAllZonesDepartment, getVendorById, HomeSendvendorEnquire, ApplyEnquireStatus, SenderEnquireStatus, AllPayment, downloadUserInvoice, checkUserPlan, GetWebsiteData, GetWebsiteData_old,getAllMedicalUser,getAllOrderUser
+  generateUserAttachPDF,CheckoutWallet ,AllPaymentWalletAdmin, AllTransactionWalletAdmin,UserPdfView, updateVendorProfileUser, paymentVerification,BookAppointmentByUser, BuyPlanAddUser, BuyPlanByUser, PayuHash, userPlanIdController, ViewAllZonesDepartment,getVendorSlotById, getVendorById, HomeSendvendorEnquire, ApplyEnquireStatus, SenderEnquireStatus, AllPayment, downloadUserInvoice, checkUserPlan, GetWebsiteData, GetWebsiteData_old,getAllMedicalUser,getAllOrderUser
 } from "../controller/userController.js"
 import authenticateToken from "../middleware/authMiddleware.js";
 import { uploadImage, handleImageUpload } from "../controller/adminController.js";
@@ -302,6 +302,7 @@ router.get('/user-orders-view/:userId/:orderId', checkOrigin, userOrdersViewCont
 router.get('/quee-view/:hospital', checkOrigin, QueeViewController);
 router.get('/quee-view/:hospital/:doctor', checkOrigin, DoctorQueeViewController);
 
+router.get('/order-quee-view/:id', checkOrigin, userOrdersViewQueeController);
 
 router.post('/payment-request', PaymentRequest);
 router.post('/payment-response', PaymentResponse);
@@ -424,6 +425,9 @@ router.post("/buy-plan", BuyPlanUser);
 router.get("/all-vendors", getAllVendor);
 
 router.get("/get-vendor/:slug", getVendorById);
+
+router.get("/get-vendor-slot", getVendorSlotById);
+
 
 router.get("/all-hospital", getAllHospital);
 

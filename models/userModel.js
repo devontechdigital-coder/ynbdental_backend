@@ -10,6 +10,10 @@ const userSchema = mongoose.Schema({
     unique: true,
     required: [true, "phone is required"],
   },
+   fix: {
+    type: String,
+     default: '+91'
+  },
   email: {
     type: String,
     unique: true,
@@ -182,6 +186,10 @@ const userSchema = mongoose.Schema({
   type: Object,
   default: {},
 },
+hospitalMeta: {
+  type: Object,
+  default: {},
+},
    skill: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SkillDepartments', // Reference to the User model for the sender
@@ -210,9 +218,18 @@ const userSchema = mongoose.Schema({
     educationList: {
     type: Object,
   },
+   floorList: {
+    type: Object,
+  }, 
+  floor: {
+    type: String,
+  }, 
   room:{
     type: String,
   },  
+  estimate:{
+    type: Number,
+  }, 
 },
   { timestamps: true }
 );
