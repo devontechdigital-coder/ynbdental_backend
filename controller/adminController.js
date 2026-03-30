@@ -1005,32 +1005,31 @@ export const AddAdminOrderController = async (req, res) => {
 
     let finalUserId;
 
-    // Create a new user only if UserDetails.id === 'none'
-    if (UserDetails && UserDetails.id === 'none') {
- 
- 
-      const newUser = new userModel({
-        username: UserDetails.name,
-        phone: UserDetails.phone,
-        email: UserDetails.email,
-        address: UserDetails.address,
-        gender: UserDetails.gender,
-        type: 2,
-        company: UserDetails.company,
-        companyName: UserDetails.companyName,
-        companyGST: UserDetails.companyGST,
-        companyAddress: UserDetails.companyAddress,
-        age: UserDetails.age,
-        weight: UserDetails.weight,
-        headId: hospitalId
-       });
-       
+  if (UserDetails && UserDetails.id === 'none') {
+  const newUser = new userModel({
+    username: UserDetails.name,
+    phone: UserDetails.phone,
+    email: UserDetails.email,
+    address: UserDetails.address,
+    gender: UserDetails.gender,
+    type: 2,
+    company: UserDetails.company,
+    companyName: UserDetails.companyName,
+    companyGST: UserDetails.companyGST,
+    companyAddress: UserDetails.companyAddress,
+    age: UserDetails.age,
+    weight: UserDetails.weight,
+    headId: hospitalId
+  });
 
-      await newUser.save();
-   
-    } else {
-      finalUserId = UserDetails.id;
-    }
+  const savedUser = await newUser.save();
+
+  // ✅ IMPORTANT FIX
+  finalUserId = savedUser._id;
+
+} else {
+  finalUserId = UserDetails.id;
+}
  
     // Create new order
     const newOrder = new orderModel({
