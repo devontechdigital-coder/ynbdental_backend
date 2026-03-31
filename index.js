@@ -109,7 +109,7 @@ io.on("connection", (socket) => {
   //   res.send('You are not authorized for this action');
   // });
 
-  const PORT = 3050;
+  const PORT = 10000;
   server.listen(PORT, () =>
     console.log(`server is runnning ${PORT}`.bgCyan.white)
   );
