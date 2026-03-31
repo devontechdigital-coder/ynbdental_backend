@@ -209,6 +209,9 @@ hospitalMeta: {
      stats: {
     type: Object,
   },
+      faq: {
+    type: Object,
+  },
    certifications: {
     type: Object,
   },

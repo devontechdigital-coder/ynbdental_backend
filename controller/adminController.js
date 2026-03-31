@@ -2420,7 +2420,8 @@ export const editHomeLayoutData = async (req, res) => {
       latest_product_carousal,
       best_selling_smartphone,
       recommended_products,
-      home_doctor,faqData
+      home_doctor,faqData,
+      india_largest_team
     } = req.body;
 
     console.log('top_bar', top_bar)
@@ -2444,7 +2445,8 @@ export const editHomeLayoutData = async (req, res) => {
       latest_product_carousal,
       best_selling_smartphone,
       recommended_products,
-      home_doctor,faqData
+      home_doctor,faqData,
+      india_largest_team
     };
 
     const homeLayoutData = await homeLayoutModel.findOneAndUpdate({}, updateFields, {

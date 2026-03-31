@@ -962,30 +962,55 @@ export const updateUserController = async (req, res) => {
     });
   }
 };
-
+ 
+ 
 export const getAllBlogsController = async (req, res) => {
   try {
-    const blogs = await blogModel.find({}).lean();
-    if (!blogs) {
+    // pagination params (optional)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // total count of blogs
+    const totalBlogs = await blogModel.countDocuments();
+
+    // get latest blogs first
+    const blogs = await blogModel
+      .find({})
+      .sort({ createdAt: -1 }) // latest first
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    if (!blogs || blogs.length === 0) {
       return res.status(200).send({
-        message: "NO Blogs Find",
         success: false,
+        message: "No Blogs Found",
+        BlogCount: 0,
+        totalBlogs,
       });
     }
+
     return res.status(200).send({
-      message: "All Blogs List ",
-      BlogCount: blogs.length,
       success: true,
+      message: "All Blogs List",
+      BlogCount: blogs.length,     // current page count
+      totalBlogs,                  // total in DB
+      currentPage: page,
+      totalPages: Math.ceil(totalBlogs / limit),
       blogs,
     });
   } catch (error) {
+    console.error(error);
     return res.status(500).send({
-      message: `error while getting Blogs ${error}`,
       success: false,
-      error,
+      message: "Error while getting blogs",
+      error: error.message,
     });
   }
 };
+
 
 export const createBlogController = async (req, res) => {
   try {
@@ -11025,7 +11050,7 @@ attribute,
 headId,
 schedule,subDepartments,location,
 lat,
-lng,stats,certifications,stories,educationList,room
+lng,stats,certifications,stories,educationList,room,faq
     } = req.body;
     console.log("Uploaded files:", req.files);
 
@@ -11071,6 +11096,7 @@ lng,stats,certifications,stories,educationList,room
  stories : stories || null,
  educationList : educationList || null,
  room : room || null,
+ faq : faq || null,
     };
 
     if (password.length > 0 && confirm_password.length > 0) {

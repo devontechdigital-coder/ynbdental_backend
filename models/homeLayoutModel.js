@@ -88,15 +88,23 @@ const homeLayoutSchema = new mongoose.Schema(
             type: Array,
             default: {}
         },
-        
-        recommended_products: {
-            type: Array,
-            default: ""
+        india_largest_team: {
+            type: Object,
+            default: {
+                badge: "Dental Specialists Network",
+                title: "India’s Most Trusted Network of Dental Specialists",
+                subtitle: "Skilled. Certified. Compassionate.",
+                stats: [
+                    { icon: "🦷", value: "75+", title: "Orthodontists", desc: "Expert teeth aligner care", bg: "rgba(13,110,253,.12)" },
+                    { icon: "👩‍⚕️", value: "70%", title: "Women Leading", desc: "Empathy, precision & excellence", bg: "rgba(25,135,84,.12)" },
+                    { icon: "🎓", value: "65%", title: "MDS Doctors", desc: "Advanced care across specialties", bg: "rgba(255,193,7,.18)" }
+                ]
+            }
         },
-         faqData: {
-  type: Object,
-   default: {},
-},
+        faqData: {
+          type: Object,
+          default: {},
+        },
 
     },
     { timestamps: true }
