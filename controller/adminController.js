@@ -1415,6 +1415,7 @@ export const updateCategoryAdmin = async (req, res) => {
       title,
       slide_head,
       slide_para,
+      slide_image,
       image,
       slug,
       description,
@@ -1437,7 +1438,7 @@ export const updateCategoryAdmin = async (req, res) => {
       metaDescription,
       metaKeywords,
       parent:parent|| null,
-      status, specifications, canonical,filter
+      status, specifications, canonical,filter,slide_image
     };
 
     const Category = await categoryModel.findByIdAndUpdate(id, updateFields, {
@@ -1863,7 +1864,7 @@ export const updateProductAdmin = async (req, res) => {
       Category,
       tag, features,protype,
       specifications, weight, gst, hsn, sku, variant_products, type, canonical, testimonials, oneto7, eightto14, fivto30, monthto3month, threemonthto6month,reStock,serialNumber,brandName,modelNo,
-      Rentalgst, recommended_products
+      Rentalgst, recommended_products,shortpara
     } = req.body;
 
     console.log('typp', type);
@@ -1884,7 +1885,7 @@ export const updateProductAdmin = async (req, res) => {
       metaKeywords,
       Category,
       tag, features,
-      specifications, weight, gst, hsn, sku, variant_products, type, canonical, testimonials,
+      specifications, weight, gst, hsn, sku, variant_products, type, canonical, testimonials,shortpara,
       oneto7, eightto14, fivto30, monthto3month, threemonthto6month,reStock,serialNumber,brandName,modelNo,protype,Rentalgst,recommended_products
     };
 

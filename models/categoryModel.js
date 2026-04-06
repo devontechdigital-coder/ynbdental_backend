@@ -12,6 +12,9 @@ const categorySchema = new mongoose.Schema(
     slide_para: {
       type: String,
     },
+     slide_image: {
+      type: String,
+    }, 
     image: {
       type: String,
     },
