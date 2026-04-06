@@ -2734,7 +2734,7 @@ export const GetAllCategoriesBySlugController = async (req, res) => {
     // Fetch products based on filters with pagination
     const products = await productModel
       .find(filters)
-      .select("_id title regularPrice salePrice pImage variations slug")
+      .select("_id title regularPrice salePrice pImage variations slug shortpara")
       .skip(skip)
       .limit(perPage)
       .lean();
