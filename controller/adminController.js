@@ -7234,7 +7234,7 @@ export const updateVendorProfileUser = async (req, res) => {
       city,
       confirm_password,
       about,
-      department
+      department,floorList
     } = req.body;
 
     const Doc1 = req.files ? req.files.Doc1 : undefined;
@@ -7256,6 +7256,7 @@ export const updateVendorProfileUser = async (req, res) => {
       city,
       about,
       department,
+      floorList
     };
 
     if (password.length > 0 && confirm_password.length > 0) {
@@ -9055,4 +9056,100 @@ export const getAllVideoCalls = async (req, res) => {
 };
 
 
+
+
+export const editOrderAppointmentAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, Prescription, mode, mystatus, productIndex, reason } = req.body;
+
+    const order = await orderModel.findById(id).populate("userId").populate("employeeId");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found", success: false });
+    }
+
+    const idx = Number(productIndex);
+    if (Number.isNaN(idx) || idx < 0 || idx >= (order.addProduct?.length || 0)) {
+      return res.status(400).json({ success: false, message: "Invalid productIndex" });
+    }
+
+    const updateFields = {};
+
+    // ✅ 1) HOLD / PRIORITY stored inside addProduct[idx]
+    if (mystatus !== undefined && mystatus !== null) {
+      updateFields[`addProduct.${idx}.subType`] = mystatus;
+    }
+
+    // ✅ 2) COMPLETE / REJECT stored inside addProduct[idx]
+    // NOTE: status = 1 complete, 2 cancel, 3 reschedule (your existing logic)
+    if (status !== undefined && status !== null) {
+      updateFields[`addProduct.${idx}.status`] = status;
+    }
+    if (mode) {
+      updateFields[`addProduct.${idx}.mode`] = mode;
+    }
+    if (Array.isArray(Prescription)) {
+      updateFields[`addProduct.${idx}.prescription`] = Prescription;
+    }
+    if (reason) {
+      updateFields[`addProduct.${idx}.reason`] = reason;
+    }
+
+    // ✅ Keep your old root prescription if you still need it somewhere (optional)
+    // if (Array.isArray(Prescription)) updateFields.prescription = Prescription;
+
+    // -----------------------------
+    // ✅ 3) EXISTING STEP LOGIC (preserved)
+    // BUT: step should NOT move for hold/priority only.
+    // Step moves only when status is sent (complete/reject/reschedule).
+    // -----------------------------
+    let myroom = null;
+    let myfloor = null;
+
+    const shouldMoveStep = status !== undefined && status !== null;
+
+    if (shouldMoveStep) {
+      const mystep = (order.step || 0) + 1;
+      const mypro = order.addProduct?.[mystep] ?? null;
+
+      myroom = order.employeeId?.hospitalMeta?.[order.hosId]?.room ?? null;
+      myfloor = order.employeeId?.hospitalMeta?.[order.hosId]?.floor ?? null;
+
+      if (order.addProduct?.length > 1 && mypro) {
+        const emp = mypro?.employee?.value || mypro?.employeeId || null;
+
+        updateFields.step = mystep;
+        updateFields.date = mypro.date;
+        updateFields.Ltime = mypro.startTime;
+        updateFields.Etime = mypro.endTime;
+        updateFields.employeeId = emp;
+        updateFields.status = 0; // keep old behavior
+      }
+    }
+
+    const updatedOrder = await orderModel.findByIdAndUpdate(
+      id,
+      { $set: updateFields },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      message: "Order Updated!",
+      success: true,
+      order: {
+        ...updatedOrder.toObject(),
+        myroom,
+        floor: myfloor,
+        orderId: order.orderId + 10, // keep your existing behavior
+      },
+    });
+  } catch (error) {
+    console.log("error", error);
+    return res.status(500).json({
+      message: `Error while updating: ${error?.message || error}`,
+      success: false,
+      error,
+    });
+  }
+};
 

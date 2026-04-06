@@ -2774,7 +2774,7 @@ export const getAllCategoriesByParentId = async (parentId) => {
     const result = [];
 
     for (const category of categories) {
-      const { _id, title, image, slug /* other fields */ } = category;
+      const { _id, title, image, slug, slide_para } = category;
 
       const categoryData = {
         _id,
@@ -2782,6 +2782,7 @@ export const getAllCategoriesByParentId = async (parentId) => {
         image,
         subcategories: await getAllCategoriesByParentId(_id), // Recursive call
         slug,
+        slide_para,
       };
 
       result.push(categoryData);
@@ -5646,6 +5647,7 @@ export const AuthUserByID = async (req, res) => {
           educationList: existingUser.educationList, 
           headId: existingUser.headId, 
           room: existingUser.room, 
+          floorList: existingUser.floorList, 
         },
       });
 
