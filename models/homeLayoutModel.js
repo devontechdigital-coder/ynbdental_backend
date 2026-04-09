@@ -101,6 +101,66 @@ const homeLayoutSchema = new mongoose.Schema(
                 ]
             }
         },
+        why_trust_section: {
+            type: Object,
+            default: {
+                heading: "Why Trust YNB Dental",
+                leftImage: "/assets/img/dental-image.webp",
+                leftTitle: "Trusted Care. Skilled Doctors.",
+                leftDescription: "Advanced dentistry with patient-first approach and modern technology.",
+                badges: ["Sterile", "Doctor Led", "Modern Tech"],
+                cards: [
+                    {
+                        icon: "🌍",
+                        title: "Modern Dental Treatment",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "Advanced dental equipment",
+                        point2: "Premium quality materials",
+                        point3: "Comfortable & painless procedures"
+                    },
+                    {
+                        icon: "👨‍⚕️",
+                        title: "Doctor-Led Patient Care",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "One-to-one consultation",
+                        point2: "Clear treatment explanation",
+                        point3: "Personalized care approach"
+                    },
+                    {
+                        icon: "⭐",
+                        title: "Growing Experience",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "Dedicated and skilled dental team",
+                        point2: "Focus on quality treatment",
+                        point3: "Every patient handled with care"
+                    },
+                    {
+                        icon: "🛡️",
+                        title: "High Safety Standards",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "Strict sterilization protocols",
+                        point2: "Clean and hygienic clinic",
+                        point3: "Safe and secure environment"
+                    },
+                    {
+                        icon: "🧩",
+                        title: "Personalized Treatment Planning",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "Tailored treatment options",
+                        point2: "Patient-first approach",
+                        point3: "Detailed dental assessment"
+                    },
+                    {
+                        icon: "💰",
+                        title: "Transparent & Honest Pricing",
+                        subtitle: "Trusted standards that improve your experience",
+                        point1: "No hidden charges",
+                        point2: "Clear communication",
+                        point3: "Affordable treatment options"
+                    }
+                ]
+            }
+        },
         faqData: {
           type: Object,
           default: {},
