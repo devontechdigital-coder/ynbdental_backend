@@ -850,6 +850,9 @@ export const SignupUserType = async (req, res) => {
       Gender,
       DOB,
       address,
+      location,
+      lat,
+      lng,
       city,
       empType,
       department,
@@ -904,6 +907,9 @@ export const SignupUserType = async (req, res) => {
       statename,
       country,
       city,
+      location,
+      lat,
+      lng,
       empType : empType ? empType : 0 ,
       userId, 
       department : department || null,
@@ -1297,7 +1303,7 @@ export const UsergetAllCategories = async (req, res) => {
  
 export const UsergetAllProducts = async (req, res) => {
   try {
-    const { type } = req.query; // Get `type` from query string
+    const { type ,cat} = req.query; // Get `type` from query string
 
     // Build query dynamically
     let query = { status: "true" };
@@ -1341,7 +1347,7 @@ export const UsergetAllProducts = async (req, res) => {
   }
 };
 
-
+ 
 
 export const UsergetAllHomeProducts = async (req, res) => {
   try {
@@ -2157,58 +2163,140 @@ export const HomeSendEnquire = async (req, res) => {
     organizationName,
     designation,
     interested,
+    productId,
+    location,
+    lat,
+    lng,
   } = req.body;
   console.log(userId, userEmail);
 
   try {
+    const normalizedRequirement =
+      typeof Requirement === "string" && Requirement.trim().length > 0
+        ? Requirement.trim()
+        : typeof QTY === "string" && isNaN(Number(QTY))
+        ? QTY.trim()
+        : "";
+
+    const normalizedQTY =
+      QTY !== undefined &&
+      QTY !== null &&
+      String(QTY).trim() !== "" &&
+      !isNaN(Number(QTY))
+        ? Number(QTY)
+        : undefined;
+
+    const enquireDisplayValue = normalizedRequirement || normalizedQTY || "NA";
+
+    const homeData = await homeModel.findOne().lean();
+    const enquireRadiusKm = Number(homeData?.enquireRadiusKm || 0);
+    const normalizedLat = lat !== undefined && lat !== null && lat !== "" ? Number(lat) : null;
+    const normalizedLng = lng !== undefined && lng !== null && lng !== "" ? Number(lng) : null;
+
+    let nearbyUserIds = [];
+
+    if (
+      Number.isFinite(normalizedLat) &&
+      Number.isFinite(normalizedLng) &&
+      enquireRadiusKm > 0
+    ) {
+      const doctors = await userModel
+        .find({
+          type: 1,
+          empType: 3,
+          verified: 1,
+          lat: { $nin: [null, ""] },
+          lng: { $nin: [null, ""] },
+        })
+        .select("_id lat lng")
+        .lean();
+
+      const toRadians = (value) => (value * Math.PI) / 180;
+      const getDistanceKm = (startLat, startLng, endLat, endLng) => {
+        const earthRadiusKm = 6371;
+        const dLat = toRadians(endLat - startLat);
+        const dLng = toRadians(endLng - startLng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRadians(startLat)) *
+            Math.cos(toRadians(endLat)) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
+      };
+
+      nearbyUserIds = doctors
+        .filter((doctor) => {
+          const doctorLat = Number(doctor.lat);
+          const doctorLng = Number(doctor.lng);
+          if (!Number.isFinite(doctorLat) || !Number.isFinite(doctorLng)) {
+            return false;
+          }
+          return (
+            getDistanceKm(normalizedLat, normalizedLng, doctorLat, doctorLng) <=
+            enquireRadiusKm
+          );
+        })
+        .map((doctor) => doctor._id);
+    }
+
     // Save data to the database
     const newEnquire = new enquireModel({
       fullname,
       email,
       phone,
       service,
-      QTY,
-      Requirement,
-      userId,
+      QTY: normalizedQTY,
+      Requirement: normalizedRequirement,
+      userId: userId && mongoose.Types.ObjectId.isValid(userId) ? userId : null,
       userEmail,
       type,
       name,
       organizationName,
       designation,
       interested,
+      productId:
+        productId && mongoose.Types.ObjectId.isValid(productId) ? productId : null,
+      location,
+      lat,
+      lng,
+      enquireRadiusKm,
+      nearbyUserIds,
     });
 
     await newEnquire.save();
 
         
        // Create the notification data object with dynamic values
-const notificationData = {
-  mobile: "918100188188",  // Replace with dynamic value if needed
-  templateid: "1193466729031008", // Template ID
-  overridebot: "yes", // Optional: Set to "yes" or "no"
-  template: {
-    components: [
-      {
-        type: "body",
-        parameters: [
-          { type: "text", text: fullname || "NA" },  
-          { type: "text", text: phone || "NA" },  
-          { type: "text", text: email || "NA" }, 
-          { type: "text", text: service || "NA" }, 
-          { type: "text", text: QTY || "NA" }  
-        ]
-      }
-    ]
-  }
-};
+       
+// const notificationData = {
+//   mobile: "918100188188",  // Replace with dynamic value if needed
+//   templateid: "1193466729031008", // Template ID
+//   overridebot: "yes", // Optional: Set to "yes" or "no"
+//   template: {
+//     components: [
+//       {
+//         type: "body",
+//         parameters: [
+//           { type: "text", text: fullname || "NA" },  
+//           { type: "text", text: phone || "NA" },  
+//           { type: "text", text: email || "NA" }, 
+//           { type: "text", text: service || "NA" }, 
+//           { type: "text", text: String(enquireDisplayValue) }  
+//         ]
+//       }
+//     ]
+//   }
+// };
   
-   const WHATSAPP =   await axios.post(process.env.WHATSAPPAPI, notificationData, {
-        headers: {
-          "API-KEY": process.env.WHATSAPPKEY,
-          "Content-Type": "application/json"
-        }
-      });
-      console.log('WHATSAPP',WHATSAPP)
+//    const WHATSAPP =   await axios.post(process.env.WHATSAPPAPI, notificationData, {
+//         headers: {
+//           "API-KEY": process.env.WHATSAPPKEY,
+//           "Content-Type": "application/json"
+//         }
+//       });
+//       console.log('WHATSAPP',WHATSAPP)
 
     // Configure nodemailer transporter
     const transporter = nodemailer.createTransport({
@@ -2232,7 +2320,7 @@ const notificationData = {
       from: process.env.MAIL_FROM_ADDRESS, // Update with your email address
       to: recipients, // Update with your email address
       subject: "New Enquire Form Submission",
-      text: `Name: ${fullname}\nEmail: ${email}\nPhone: ${phone}\nService: ${service}\nQTY:${QTY}`,
+      text: `Name: ${fullname}\nEmail: ${email}\nPhone: ${phone}\nService: ${service}\nRequirement:${enquireDisplayValue}`,
     };
 
     // Send email
@@ -2966,7 +3054,7 @@ export const QueeViewController = async (req, res) => {
 };
 
 
-export const DoctorQueeViewController = async (req, res) => {
+export const DoctorQueeViewController_16_apr_2026 = async (req, res) => {
   try {
     const { hospital,doctor } = req.params;
 
@@ -3012,6 +3100,115 @@ export const DoctorQueeViewController = async (req, res) => {
   }
 };
 
+
+export const DoctorQueeViewController = async (req, res) => {
+  try {
+    const { hospital, doctor } = req.params;
+
+    // -----------------------------
+    // 1. Fetch hospital & doctor
+    // -----------------------------
+    const hospitalData = await userModel.findById(hospital);
+    const doctorData = await userModel.findById(doctor);
+
+    if (!hospitalData || !doctorData) {
+      return res.status(404).json({
+        success: false,
+        message: "Hospital or Doctor not found",
+      });
+    }
+
+    // -----------------------------
+    // 2. Get today's date range
+    // -----------------------------
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    // -----------------------------
+    // 3. Get today's orders (DOCTOR BASED)
+    // -----------------------------
+    const todaysOrders = await orderModel
+      .find({
+        hosId: hospital,
+        // status: 0,
+        date: { $gte: today, $lt: tomorrow },
+
+        // 🔥 IMPORTANT FIX
+        addProduct: {
+          $elemMatch: {
+            "employee.value": doctor,
+            "status": 0,
+          },
+        },
+      })
+      .populate({
+        path: "employeeId",
+        select: "username room hospitalMeta",
+      })
+      .populate({
+        path: "hosId",
+        select: "username room subDepartments",
+      });
+
+    // -----------------------------
+    // 4. Get today's day name
+    // -----------------------------
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const todayDayName = dayNames[new Date().getDay()];
+
+    // -----------------------------
+    // 5. Calculate doctor's queue capacity
+    // -----------------------------
+    let totalQueueToday = 0;
+
+    const hospitalSchedule = doctorData?.schedule?.[hospital];
+
+    if (
+      hospitalSchedule &&
+      hospitalSchedule[todayDayName] &&
+      hospitalSchedule[todayDayName].isClosed === "false"
+    ) {
+      const slots = hospitalSchedule[todayDayName].slots || [];
+
+      totalQueueToday = slots.reduce((sum, slot) => {
+        return sum + (Number(slot.patients) || 0);
+      }, 0);
+    }
+
+    // -----------------------------
+    // 6. Response
+    // -----------------------------
+    return res.status(200).json({
+      success: true,
+      message: "Doctor queue fetched successfully",
+      hospital: hospitalData,
+      orders: todaysOrders,
+      queue: {
+        current: todaysOrders.length,
+        total: totalQueueToday,
+        left: Math.max(totalQueueToday - todaysOrders.length, 0),
+      },
+    });
+  } catch (error) {
+    console.error("DoctorQueueViewController Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error while fetching doctor queue",
+      error: error.message,
+    });
+  }
+};
  
 
 export const userOrdersViewQueeController = async (req, res) => {

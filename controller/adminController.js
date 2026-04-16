@@ -2349,7 +2349,7 @@ export const editHomeData = async (req, res) => {
       email,
       address,
       cash,
-      razorpay,commission
+      razorpay,commission,enquireRadiusKm
     } = req.body;
 
     console.log(meta_favicon)
@@ -2367,7 +2367,7 @@ export const editHomeData = async (req, res) => {
       email,
       address,
       cash,
-      razorpay,commission
+      razorpay,commission,enquireRadiusKm
     };
 
     const homeData = await homeModel.findOneAndUpdate({}, updateFields, {
@@ -7327,12 +7327,16 @@ export const AdminAllEnquireStatus = async (req, res) => {
     // Initialize the query object
     let query = {};
 
-    // If userId is provided, filter by userId
-    if (userId) {
-      query.userId = userId; // Filter by userId
+    // If userId is provided, filter enquiries assigned to that vendor/doctor.
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      const targetUserId = new mongoose.Types.ObjectId(userId);
+      query.$or = [
+        { senderId: targetUserId },
+        { nearbyUserIds: targetUserId },
+      ];
+    } else {
+      query.type = 1;
     }
-
-    query.type = 1; // Filter by userId
 
 
     // If there's a search term, apply it to a specific field (assuming a text index exists on the model)
@@ -9059,6 +9063,47 @@ export const getAllVideoCalls = async (req, res) => {
 };
 
 
+
+ export const editOrderProductAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { addProduct } = req.body;
+
+    if (!id || !addProduct) {
+      return res.status(404).json({
+        message: "Order not found",
+        success: false,
+      });
+    }
+
+    // Add status: 0 to each product
+    const updatedProducts = addProduct.map(product => ({
+      ...product,
+      status: 0,
+    }));
+
+    let updateFields = {
+      addProduct: updatedProducts,
+    };
+
+    await orderModel.findByIdAndUpdate(id, updateFields, {
+      new: true,
+    });
+
+    return res.status(200).json({
+      message: "Order Updated!",
+      success: true,
+    });
+
+  } catch (error) {
+    console.log('error', error);
+    return res.status(500).json({
+      message: `Error while updating Rating: ${error}`,
+      success: false,
+      error,
+    });
+  }
+};
 
 
 export const editOrderAppointmentAdmin = async (req, res) => {

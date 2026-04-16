@@ -21,7 +21,7 @@ getSkillDepartmentIdAdmin,
 deleteSkillDepartmentAdmin,
 AddAdminAttributeDepartmentController,
 getAllAttributeDepartmentFillAdmin,
-updateAttributeDepartmentAdmin,
+updateAttributeDepartmentAdmin,editOrderProductAdmin,
 getAttributeDepartmentIdAdmin,editOrderAppointmentAdmin,
 deleteAttributeDepartmentAdmin,deleteUserAdmin,getAllLeadProductDepartment,AddAdminLeadProductController,getAllLeadProductFillAdmin,updateLeadProductAdmin,getLeadProductIdAdmin,deleteLeadProductAdmin
 ,assignUserIds,AddVideoCall ,editRedeemStatusAdmin,AllAdminRedeemController,endVideoCall,AddAdminRedeemController, getAllVideoCalls,getVideoCall,generateUserprescriptionPDFView,generateUserInvoicePDFView, editUserVerifyAdmin,editFullLeadAdmin, AdminGetAllEmployee, profileDocImage,AllPaymentAdmin, AdminAllEnquireStatus, profileImageHealth,deletePlanCategoryAdmin
@@ -126,7 +126,8 @@ router.put('/admin/update-full-lead/:id', editFullLeadAdmin);
 router.get('/admin/all-medical', getAllMedicalAdmin);
 
 router.put('/admin/update-appointment/:id', editOrderAppointmentAdmin);
- 
+ router.put('/admin/update-order-product/:id', editOrderProductAdmin);
+
 
 router.get('/admin/all-booking', getAllBookingAdmin);
 

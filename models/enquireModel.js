@@ -16,6 +16,9 @@ const enquireSchema = mongoose.Schema({
   service: {
     type: String,
   },
+  QTY: {
+    type: Number,
+  },
   type: {
     type: Number,
   },
@@ -28,6 +31,47 @@ const enquireSchema = mongoose.Schema({
     ref: "User", 
   },
   requirement : {
+    type: String,
+  },
+  Requirement: {
+    type: String,
+  },
+  userEmail: {
+    type: String,
+  },
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "product",
+  },
+  location: {
+    type: String,
+  },
+  lat: {
+    type: String,
+  },
+  lng: {
+    type: String,
+  },
+  enquireRadiusKm: {
+    type: Number,
+    default: 0,
+  },
+  nearbyUserIds: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  name: {
+    type: String,
+  },
+  organizationName: {
+    type: String,
+  },
+  designation: {
+    type: String,
+  },
+  interested: {
     type: String,
   },
   planId : {

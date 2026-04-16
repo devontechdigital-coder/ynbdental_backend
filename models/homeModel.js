@@ -56,7 +56,11 @@ const homeSchema = new mongoose.Schema(
         },
         commission: {
             type: Number,
-         }
+         },
+        enquireRadiusKm: {
+            type: Number,
+            default: 0
+        }
     },
     { timestamps: true }
 );
