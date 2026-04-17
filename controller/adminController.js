@@ -55,6 +55,74 @@ import redeemModel from "../models/redeemModel.js";
 
 const execPromise = util.promisify(exec);
 
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  return { startOfMonth, startOfNextMonth };
+};
+
+const buildAppointmentDashboardStats = async (scopeField, scopeId) => {
+  if (!mongoose.Types.ObjectId.isValid(scopeId)) {
+    const error = new Error("Invalid dashboard user id");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const scopeObjectId = new mongoose.Types.ObjectId(scopeId);
+  const { startOfMonth, startOfNextMonth } = getCurrentMonthRange();
+
+  const baseMatch = {
+    type: 3,
+    [scopeField]: scopeObjectId,
+  };
+
+  const monthMatch = {
+    ...baseMatch,
+    date: {
+      $gte: startOfMonth,
+      $lt: startOfNextMonth,
+    },
+  };
+
+  const completedMonthMatch = {
+    ...monthMatch,
+    "addProduct.status": 1,
+  };
+
+  const [totalAppointments, monthCompletedAppointments, totalMonthAppointments, revenueData] =
+    await Promise.all([
+      orderModel.countDocuments(baseMatch),
+      orderModel.countDocuments(completedMonthMatch),
+      orderModel.countDocuments(monthMatch),
+      orderModel.aggregate([
+        { $match: completedMonthMatch },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: {
+                $ifNull: ["$totalAmount", { $ifNull: ["$subtotal", 0] }],
+              },
+            },
+          },
+        },
+      ]),
+    ]);
+
+  return {
+    totalAppointments,
+    monthCompletedAppointments,
+    monthRevenueGeneratedByDoctor: revenueData?.[0]?.totalRevenue || 0,
+    totalMonthAppointments,
+    month: startOfMonth.toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    }),
+  };
+};
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -1112,6 +1180,7 @@ export const assignUserIds = async () => {
   }
 };
 
+ 
 export const getOrderIdAdminController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1139,6 +1208,7 @@ export const getOrderIdAdminController = async (req, res) => {
     });
   }
 };
+
 
 
 export const getMedicalIdAdminController = async (req, res) => {
@@ -3616,7 +3686,7 @@ if (startDate && endDate) {
   }
 };
 
-
+ 
 export const editFullOrderAdmin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -3641,10 +3711,12 @@ export const editFullOrderAdmin = async (req, res) => {
       UserDetails,
       employeeSaleId,
       employeeId,
-      PickupDate,ReturnDate,SecurityAmt,AdvanceAmt,
-       addRental,
-       addReceived,
-       addReturn,
+      // PickupDate,
+      // ReturnDate,
+      // SecurityAmt,AdvanceAmt,
+      //  addRental,
+      //  addReceived,
+      //  addReturn,
        addProduct,
        discount,
        subtotal,
@@ -3655,7 +3727,11 @@ export const editFullOrderAdmin = async (req, res) => {
        totalAmount: finalTotal,
        taxTotal,  
         addHistory,
-       dutyHr,Ltime,appoinment,prescription,images
+       dutyHr,
+       Ltime,
+       appoinment,
+       prescription,
+      //  images
     };
 
     // Only include OnBoardDate if it's a valid date
@@ -3689,7 +3765,6 @@ if (OnBoardDate && !isNaN(Date.parse(OnBoardDate))) {
     });
   }
 };
-
 
 export const editFullLeadAdmin = async (req, res) => {
   try {
@@ -9196,6 +9271,44 @@ export const editOrderAppointmentAdmin = async (req, res) => {
     return res.status(500).json({
       message: `Error while updating: ${error?.message || error}`,
       success: false,
+      error,
+    });
+  }
+};
+
+export const getHospitalDashboardStatsAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stats = await buildAppointmentDashboardStats("hosId", id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Hospital dashboard data fetched successfully",
+      stats,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: `Error while fetching hospital dashboard: ${error.message}`,
+      error,
+    });
+  }
+};
+
+export const getDoctorDashboardStatsAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stats = await buildAppointmentDashboardStats("employeeId", id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor dashboard data fetched successfully",
+      stats,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: `Error while fetching doctor dashboard: ${error.message}`,
       error,
     });
   }

@@ -24,7 +24,7 @@ getAllAttributeDepartmentFillAdmin,
 updateAttributeDepartmentAdmin,editOrderProductAdmin,
 getAttributeDepartmentIdAdmin,editOrderAppointmentAdmin,
 deleteAttributeDepartmentAdmin,deleteUserAdmin,getAllLeadProductDepartment,AddAdminLeadProductController,getAllLeadProductFillAdmin,updateLeadProductAdmin,getLeadProductIdAdmin,deleteLeadProductAdmin
-,assignUserIds,AddVideoCall ,editRedeemStatusAdmin,AllAdminRedeemController,endVideoCall,AddAdminRedeemController, getAllVideoCalls,getVideoCall,generateUserprescriptionPDFView,generateUserInvoicePDFView, editUserVerifyAdmin,editFullLeadAdmin, AdminGetAllEmployee, profileDocImage,AllPaymentAdmin, AdminAllEnquireStatus, profileImageHealth,deletePlanCategoryAdmin
+,assignUserIds,AddVideoCall ,editRedeemStatusAdmin,AllAdminRedeemController,endVideoCall,AddAdminRedeemController, getAllVideoCalls,getVideoCall,generateUserprescriptionPDFView,generateUserInvoicePDFView, editUserVerifyAdmin,editFullLeadAdmin, AdminGetAllEmployee, profileDocImage,AllPaymentAdmin, AdminAllEnquireStatus, profileImageHealth,deletePlanCategoryAdmin, getHospitalDashboardStatsAdmin, getDoctorDashboardStatsAdmin
 } from "../controller/adminController.js";
 
 import {
@@ -126,6 +126,8 @@ router.put('/admin/update-full-lead/:id', editFullLeadAdmin);
 router.get('/admin/all-medical', getAllMedicalAdmin);
 
 router.put('/admin/update-appointment/:id', editOrderAppointmentAdmin);
+router.get('/admin/dashboard/hospital/:id', getHospitalDashboardStatsAdmin);
+router.get('/admin/dashboard/doctor/:id', getDoctorDashboardStatsAdmin);
  router.put('/admin/update-order-product/:id', editOrderProductAdmin);
 
 
