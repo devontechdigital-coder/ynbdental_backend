@@ -2200,10 +2200,10 @@ export const HomeSendEnquire = async (req, res) => {
       Number.isFinite(normalizedLng) &&
       enquireRadiusKm > 0
     ) {
-      const doctors = await userModel
+      const clinics = await userModel
         .find({
           type: 1,
-          empType: 3,
+          empType: 2,
           verified: 1,
           lat: { $nin: [null, ""] },
           lng: { $nin: [null, ""] },
@@ -2226,19 +2226,19 @@ export const HomeSendEnquire = async (req, res) => {
         return earthRadiusKm * c;
       };
 
-      nearbyUserIds = doctors
-        .filter((doctor) => {
-          const doctorLat = Number(doctor.lat);
-          const doctorLng = Number(doctor.lng);
-          if (!Number.isFinite(doctorLat) || !Number.isFinite(doctorLng)) {
+      nearbyUserIds = clinics
+        .filter((clinic) => {
+          const clinicLat = Number(clinic.lat);
+          const clinicLng = Number(clinic.lng);
+          if (!Number.isFinite(clinicLat) || !Number.isFinite(clinicLng)) {
             return false;
           }
           return (
-            getDistanceKm(normalizedLat, normalizedLng, doctorLat, doctorLng) <=
+            getDistanceKm(normalizedLat, normalizedLng, clinicLat, clinicLng) <=
             enquireRadiusKm
           );
         })
-        .map((doctor) => doctor._id);
+        .map((clinic) => clinic._id);
     }
 
     // Save data to the database
@@ -11381,15 +11381,34 @@ export const SenderEnquireStatus = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const query = {
-      userId: userId, // Filter by senderId matching userId
-    };
+    const query = {};
+
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      const targetUserId = new mongoose.Types.ObjectId(userId);
+      query.$or = [
+        { senderId: targetUserId },
+        { nearbyUserIds: targetUserId },
+      ];
+    } else {
+      return res.status(400).send({
+        message: "Invalid userId",
+        success: false,
+      });
+    }
 
     if (searchTerm) {
-      query.$or = [
-        { 'phone': { $regex: searchTerm, $options: 'i' } }, // Case-insensitive regex search for phone
-        { 'email': { $regex: searchTerm, $options: 'i' } }, // Case-insensitive regex search for email
-        { 'userId.username': { $regex: searchTerm, $options: 'i' } } // Case-insensitive regex search for username
+      const regex = new RegExp(searchTerm, "i");
+      query.$and = [
+        {
+          $or: [
+            { fullname: regex },
+            { phone: regex },
+            { email: regex },
+            { service: regex },
+            { Requirement: regex },
+            { location: regex },
+          ],
+        },
       ];
     }
     const total = await enquireModel.countDocuments(query); // Count only the documents matching the query
@@ -11401,6 +11420,8 @@ export const SenderEnquireStatus = async (req, res) => {
       .limit(limit)
       .populate('planId')
       .populate('userId', 'username email phone address') // Populate userId with username and address only
+      .populate('senderId', 'username email phone address')
+      .populate('nearbyUserIds', 'username email phone')
       .lean();
 
     if (!Enquire || Enquire.length === 0) {

@@ -2621,10 +2621,14 @@ export const getAllEnquireAdmin = async (req, res) => {
 
     const query = {};
     if (searchTerm) {
-      // If search term is provided, add it to the query
+      const regex = new RegExp(searchTerm, "i");
       query.$or = [
-        { userId: { $regex: searchTerm, $options: "i" } }, // Case-insensitive username search
-        { productId: { $regex: searchTerm, $options: "i" } }, // Case-insensitive email search
+        { fullname: regex },
+        { phone: regex },
+        { email: regex },
+        { service: regex },
+        { Requirement: regex },
+        { location: regex },
       ];
     }
 
@@ -2635,6 +2639,7 @@ export const getAllEnquireAdmin = async (req, res) => {
       .sort({ _id: -1 }) // Sort by _id in descending order
       .skip(skip)
       .limit(limit)
+      .populate("nearbyUserIds", "username userId email phone")
       .lean();
 
     if (!Enquire || Enquire.length === 0) {
@@ -7772,7 +7777,7 @@ export const AdminGetuserPhone = async (req, res) => {
 };
 
 
-export const generateUserInvoicePDFView = async (req, res) => {
+export const generateUserInvoicePDFView_18_apr_2026 = async (req, res) => {
   try {
 
   const { id,rec } = req.params;
@@ -8284,8 +8289,517 @@ ${invoiceData.type === 2 ?  `
 
 };
 
+export const generateUserInvoicePDFView = async (req, res) => {
+  try {
 
-export const generateUserprescriptionPDFView = async (req, res) => {
+  const { id,rec } = req.params;
+
+  const lastTransaction = await orderModel
+    .findById(id)
+    .limit(1) // Only get the most recent transaction
+    .populate({
+      path: "userId", // The field to populate
+      select: "phone username email c_name gstin statename ", // Only select the phone and username fields from the User model
+    })
+    .lean(); // Convert documents to plain JavaScript objects
+
+  // If lastTransaction is an array, you can access the first element like this
+  const invoiceData = lastTransaction;
+  
+  // console.log(invoiceData);
+  console.log('invoiceData.UserDetails',invoiceData);
+ 
+
+  const formatDate = (dateString) => {
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  const formatTime = (dateString) => {
+    const options = { hour: "2-digit", minute: "2-digit" };
+    return new Date(dateString).toLocaleTimeString(undefined, options);
+  };
+
+// invoiceData.addProduct.forEach(product => {
+//   product.amount = 30000; // Set your custom amount
+//   product.total = 30000;  // Set your custom total
+// });
+// rec
+
+  console.log('invoiceData',invoiceData)
+ 
+const formatDateToLongString = (dateString)  => {
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
+}
+
+
+  console.log('invoiceData.addProduct',invoiceData.addProduct)
+  // Define the HTML content
+  const htmlContent = `     <div class="invoice">
+      <div class="invoice-header">
+        <div class="invoice-header-left" style="flex:none;">
+          <img src="https://backend-2o7f.onrender.com/uploads/new/image-1726306777273.webp" alt="Company Logo" width="240">
+        
+        </div>
+        <div class="invoice-header-right">
+          <h2 style="margin-top:0px;">YNB Healthcare Pvt. Ltd.
+ </h2>
+ <p>WZ 10C, A-2 Block, Asalatpur Near Mata Chanan Devi Hospital, Janakpuri, New Delhi, 110058 </p>
+<p> Contact - +91-8100188188 </p>
+  <p> Email : support@ynbhealthcare.com </p>
+         
+                         
+        </div>
+      </div>
+
+<div style="margin-bottom: 15px;margin-top: 15px;border-top-style: solid;border-top-width: 3pt;border-top-color: #4F81BC;"> </div>
+
+          <div class="invoice-header">
+        <div class="invoice-header-left">
+                     <h2 style="margin-top:0px;">BILLED TO</h2>
+ 
+           <p> <b> Name: </b> ${invoiceData?.UserDetails[0]?.name}</p>
+            <p> <b> Email Id: </b> ${invoiceData?.UserDetails[0]?.email}</p>
+            <p> <b>  Phone No.: </b> ${invoiceData?.UserDetails[0]?.phone}</p>
+            <p> <b>  Address: </b> ${invoiceData?.UserDetails[0]?.address}</p>
+            <p> <b>  GST: </b> 
+            ${invoiceData?.UserDetails[0]?.company === 'yes' ? invoiceData?.UserDetails[0]?.companyGST : 'NA'}
+            </p>
+
+
+          
+         
+        </div>
+        <div class="invoice-header-right">
+          <h2 style="margin-top:0px;"> INVOICE</h2>
+            <p> <b> Invoice No.:</b> #${invoiceData?.orderId}</p>
+            
+          <p> <b>   Date :</b> ${formatDate(
+      invoiceData?.createdAt
+    )}     </p>
+
+  
+  
+        <p> <b>  GSTIN:</b> 07AAACY9494K1ZJ    </p>
+
+        </div>
+      </div>
+
+
+ <table class="invoice-table" style="margin-bottom:0px;">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      ${rec ? `<th>Date</th>` : ''}
+      <th>Quantity</th>
+       <th>Total Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${invoiceData.addProduct && invoiceData.addProduct.length > 0
+      ? invoiceData.addProduct.map((product, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${product.title} ${rec ? `for ${invoiceData.addReceived[Number(rec)].days}Days` : ''}</td>
+                  ${rec ? `<td> ${invoiceData.addReceived[Number(rec)].date} </td>` : ''}
+        ${rec ? `<th>${formatDateToLongString(invoiceData.addReceived[Number(rec)].date)}</th>` : ''}
+
+          <td>${product.quantity}</td>
+           <td>₹ ${rec ? invoiceData.addReceived[Number(rec)].amount : product.total.toFixed(2)}</td>
+        </tr>
+      `).join('')
+      : `<tr><td colspan="6" class="text-center">No products added</td></tr>`
+    }
+  </tbody>
+</table>
+
+${invoiceData.addProduct && invoiceData.addProduct.length > 0 ? `
+  <div class="col-md-4 ms-auto" style="width:33%;margin-left:auto;margin-top:10px;">
+    <table class="invoice-table" >
+      <tbody  >
+        <tr >
+          <th>Subtotal:</th>
+          <td>₹ ${rec ? invoiceData.addReceived[Number(rec)].amount : invoiceData.subtotal.toFixed(2)}</td>
+        </tr>
+
+        <tr>
+          <th>Discount:</th>
+          <td>
+           ${invoiceData.discount}
+          </td>
+        </tr>
+
+        <tr>
+          <th>Shipping:</th>
+          <td>
+           ${invoiceData.shipping}
+          </td>
+        </tr>
+
+        <tr>
+          <th>
+            Tax ${invoiceData.applyIGST ? '(IGST)' : '(CGST + SGST)'}:
+            
+          </th>
+          <td>₹ ${(invoiceData.applyIGST || invoiceData.applyCGST || invoiceData.applySGST) ? invoiceData.taxTotal.toFixed(2) : '0.00'}</td>
+        </tr>
+
+        <tr>
+          <th>Final Total:</th>
+          <td><strong>₹ ${rec ? invoiceData.addReceived[Number(rec)].amount : invoiceData.totalAmount.toFixed(2)}
+          </strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+` : ''}
+${invoiceData.type === 2 ?  `
+
+<div class="col-md-12 my-4">
+  <div class="d-flex justify-content-between">
+    <h4>Rental Amount</h4>
+    
+  </div>
+  <hr />
+
+  <div class="overflow-auto">
+    <table class="invoice-table" id="rental-table" style="margin-bottom:0px;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Amount INR</th>
+          <th>Gateway</th>
+          <th>Payment Method</th>
+          <th>Transaction Id</th>
+         </tr>
+      </thead>
+      <tbody id="rental-table-body">
+        ${invoiceData.addRental && invoiceData.addRental.length > 0 ? invoiceData.addRental.map((rental, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${rental.date}</td>
+            <td>${rental.time}</td>
+            <td>${rental.amount}</td>
+            <td>${rental.gateway}</td>
+            <td>${rental.method}</td>
+            <td>${rental.transaction}</td>
+            
+          </tr>
+        `).join('') : `
+          <tr>
+            <td colspan="8" class="text-center">No Rental Added</td>
+          </tr>
+        `}
+      </tbody>
+    </table>
+  </div>
+
+  ${invoiceData.addRental && invoiceData.addRental.length > 0 ? `
+    <div class="col-md-4 ms-auto" style="max-width:33%;margin-left:auto;">
+      <table  class="invoice-table" id="rental-table" style="margin-bottom:0px;margin-top:10px;">
+        <tbody>
+          <tr>
+            <th>Final Total:</th>
+            <td><strong>₹ ${invoiceData.addRental.reduce((acc, rental) => acc + parseFloat(rental.amount || 0), 0).toFixed(2)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+</div>
+
+
+<div class="col-md-12 my-4">
+  <div class="d-flex justify-content-between">
+    <h4>Security Amount Received</h4>
+    
+  </div>
+  <hr />
+
+  <div class="overflow-auto">
+    <table class="invoice-table" id="rental-table" style="margin-bottom:0px;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Amount INR</th>
+          <th>Gateway</th>
+          <th>Payment Method</th>
+          <th>Transaction Id</th>
+         </tr>
+      </thead>
+      <tbody id="rental-table-body">
+        ${invoiceData.addReceived && invoiceData.addReceived.length > 0 ? invoiceData.addReceived.map((rental, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${rental.date}</td>
+            <td>${rental.time}</td>
+            <td>${rental.amount}</td>
+            <td>${rental.gateway}</td>
+            <td>${rental.method}</td>
+            <td>${rental.transaction}</td>
+            
+          </tr>
+        `).join('') : `
+          <tr>
+            <td colspan="8" class="text-center">No Rental Added</td>
+          </tr>
+        `}
+      </tbody>
+    </table>
+  </div>
+
+  ${invoiceData.addReceived && invoiceData.addReceived.length > 0 ? `
+    <div class="col-md-4 ms-auto" style="max-width:33%;margin-left:auto;">
+      <table  class="invoice-table" id="rental-table" style="margin-bottom:0px;margin-top:10px;">
+        <tbody>
+          <tr>
+            <th>Final Total:</th>
+            <td><strong>₹ ${invoiceData.addReceived.reduce((acc, rental) => acc + parseFloat(rental.amount || 0), 0).toFixed(2)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+</div>
+
+     
+<div class="col-md-12 my-4">
+  <div class="d-flex justify-content-between">
+    <h4> Security Amount Return
+ </h4>
+    
+  </div>
+  <hr />
+
+  <div class="overflow-auto">
+    <table class="invoice-table" id="rental-table" style="margin-bottom:0px;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Amount INR</th>
+          <th>Gateway</th>
+          <th>Payment Method</th>
+          <th>Transaction Id</th>
+         </tr>
+      </thead>
+      <tbody id="rental-table-body">
+        ${invoiceData.addReturn && invoiceData.addReturn.length > 0 ? invoiceData.addReturn.map((rental, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${rental.date}</td>
+            <td>${rental.time}</td>
+            <td>${rental.amount}</td>
+            <td>${rental.gateway}</td>
+            <td>${rental.method}</td>
+            <td>${rental.transaction}</td>
+            
+          </tr>
+        `).join('') : `
+          <tr>
+            <td colspan="8" class="text-center">No Rental Added</td>
+          </tr>
+        `}
+      </tbody>
+    </table>
+  </div>
+
+  ${invoiceData.addReturn && invoiceData.addReturn.length > 0 ? `
+    <div class="col-md-4 ms-auto" style="max-width:33%;margin-left:auto;">
+      <table  class="invoice-table" id="rental-table" style="margin-bottom:0px;margin-top:10px;">
+        <tbody>
+          <tr>
+            <th>Final Total:</th>
+            <td><strong>₹ ${invoiceData.addReturn.reduce((acc, rental) => acc + parseFloat(rental.amount || 0), 0).toFixed(2)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+</div>
+
+  ` : ''}
+
+<br>
+     <p style="text-align:center" >This is a Computer Generated Invoice </p>
+ <br>
+ <div style="text-align:center;">
+ 
+ </div>
+
+      <button class="btn" onclick="window.print()">Print Page</button>
+ <br>
+
+
+    </div>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      h2 {
+        font-weight: 700;
+      }
+        h1,h2{
+        font-size: 14pt;
+}
+        p,td,th{font-size: 10pt;}
+      .invoice {
+        width: 95%;
+        margin: 10px auto;
+        padding: 20px;
+      }
+      .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 20px;
+      }
+      .invoice-header-left {
+        flex: 1;
+      }
+      .invoice-header-right {
+        flex: 1;
+        text-align: right;
+      }
+      .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10%;
+      }
+      .invoice-table th,
+      .invoice-table td {
+        border: 1px solid #000;
+        padding: 10px;
+        text-align: center;
+      }
+      .invoice-table th {
+      
+        color:green;
+    
+      }
+      .invoice-total {
+        float: right;
+      }
+
+      
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      background-color: #007bff;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background-color: #0056b3;
+    }
+
+    @media print {
+      .btn {
+        display: none;
+      }
+    }
+
+    </style>
+  `;
+
+  res.send(htmlContent);
+
+} catch (error) {
+  console.error("Error generating invoice PDF view:", error.message);
+  // Redirect to YNB.com on error
+  const htmlContent =`
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>404 Not Found</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f8f8f8;
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+    }
+
+    h1 {
+      font-size: 120px;
+      margin-bottom: 20px;
+      color: #ff6b6b;
+    }
+
+    h2 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+
+    a {
+      display: inline-block;
+      text-decoration: none;
+      background-color: #007bff;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    a:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>404</h1>
+    <h2>Page Not Found</h2>
+    <p>Sorry, the page you’re looking for doesn’t exist.</p>
+   </div>
+
+</body>
+</html>
+
+    `;
+
+  res.send(htmlContent);
+}
+
+};
+
+
+
+export const generateUserprescriptionPDFView_18_apr_2026 = async (req, res) => {
   try {
 
   const { id,rec } = req.params;
@@ -8433,6 +8947,318 @@ const htmlContent = `
         <div class="sign-line"> <img src="/${safe(invoiceData?.employeeId?.Doc4, '')}" style="display: block;" /> 
         </div>
         <div class="sign-label">${safe(invoiceData?.employeeId?.username, 'Doctor')}</div>
+      </div>
+ 
+    </section>
+
+    <p class="disc">This prescription is intended for use only by the patient named above.</p>
+
+    <div class="print-area">
+      <button class="btn" onclick="window.print()">Print Page</button>
+    </div>
+  </div>
+
+  <style>
+    :root{
+      --ink:#111;
+      --muted:#666;
+      --line:#1b5e20; /* medical green */
+      --border:#999;
+    }
+    body{ font-family: Arial, Helvetica, sans-serif; color:var(--ink); }
+    .prescription{ width:95%; margin:12px auto 24px; padding:20px; background:#fff; }
+    h1,h2{ margin:0 0 6px 0; }
+    h1{ font-size:20pt; font-weight:800; color:var(--line); }
+    h2{ font-size:12pt; font-weight:700; }
+    .muted{ color:var(--muted); }
+
+    .rx-header{ display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:8px; }
+    .doc-name{ margin-top:0; }
+    .doc-qual{ color:var(--muted); font-size:10pt; margin-bottom:6px; }
+    .doc-contact{ font-size:10pt; color:var(--ink); }
+    .rx-title{ font-size:14pt; font-weight:800; color:var(--line); text-align:right; margin-bottom:4px; }
+    .rx-header-right{ text-align:right; font-size:10pt; }
+
+    .divider{ height:2px; background:var(--line); opacity:.9; margin:10px 0 16px; }
+
+    .patient .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap:6px 16px; }
+    .patient, .diagnosis, .rx, .services, .attachments{ margin-bottom:16px; }
+    .diagnosis p{ margin:6px 0 0; }
+
+    .rx{ display:flex; gap:12px; align-items:flex-start; }
+    .rx-mark{ font-size:26pt; color:var(--line); font-weight:800; line-height:1; }
+    .rx-body h2{ margin-bottom:8px; }
+    .rx-list{ margin:6px 0 0 18px; }
+    .rx-list li{ margin:4px 0; }
+
+    .rx-table{ width:100%; border-collapse:collapse; }
+    .rx-table th, .rx-table td{ border:1px solid var(--border); padding:8px; font-size:10pt; text-align:left; }
+    .rx-table th{ color:var(--line); }
+
+    .attachments .img-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:12px; }
+    .attachments img{ width:100%; height:140px; object-fit:cover; border:1px solid #ddd; border-radius:4px; }
+
+    .sign-row{ display:flex; gap:20px; align-items:flex-end; justify-content:space-between; margin-top:18px; }
+    .sign-box{ width:320px; text-align:center; }
+    .sign-line{ border-bottom:1.5px solid #333;  margin-bottom:6px; }
+    .sign-label{ font-size:10pt; color:#333; }
+    .meta-box table{ border-collapse:collapse; font-size:10pt; }
+    .meta-box th, .meta-box td{ border:1px solid var(--border); padding:6px 10px; }
+    .meta-box th{ color:var(--line); text-align:left; }
+
+    .disc{ margin:18px 0 0; text-align:center; color:var(--muted); font-size:10pt; }
+    .print-area{ margin-top:14px; text-align:left; }
+
+    .btn{ display:inline-block; border:0; padding:10px 18px; background:#0d6efd; color:#fff; border-radius:6px; cursor:pointer; }
+    .btn:hover{ background:#0b5ed7; }
+
+    @media (max-width:720px){
+      .rx-header{ flex-direction:column; }
+      .rx-header-right{ text-align:left; }
+      .patient .grid-2{ grid-template-columns:1fr; }
+      .sign-row{ flex-direction:column; align-items:stretch; }
+      .sign-box{ width:100%; }
+    }
+
+    @media print{
+      .btn{ display:none; }
+      .prescription{ width:100%; padding:0; }
+      .attachments img{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    }
+  </style>
+`;
+
+  res.send(htmlContent);
+
+} catch (error) {
+  console.error("Error generating invoice PDF view:", error.message);
+  // Redirect to YNB.com on error
+  const htmlContent =`
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>404 Not Found</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f8f8f8;
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+    }
+
+    h1 {
+      font-size: 120px;
+      margin-bottom: 20px;
+      color: #ff6b6b;
+    }
+
+    h2 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+
+    a {
+      display: inline-block;
+      text-decoration: none;
+      background-color: #007bff;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    a:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>404</h1>
+    <h2>Page Not Found</h2>
+    <p>Sorry, the page you’re looking for doesn’t exist.</p>
+   </div>
+
+</body>
+</html>
+
+    `;
+
+  res.send(htmlContent);
+}
+
+};
+
+
+export const generateUserprescriptionPDFView = async (req, res) => {
+  try {
+
+  const { id,rec,index } = req.params;
+
+  const lastTransaction = await orderModel
+    .findById(id)
+    .limit(1) // Only get the most recent transaction
+    .populate({
+      path: "userId", // The field to populate
+      select: "phone username email c_name gstin statename ", // Only select the phone and username fields from the User model
+    }).populate({
+  path: "employeeId",
+  model: userModel,
+  select: "username email phone department Doc4",
+  populate: {
+    path: "department",       // field in userModel
+    model: departmentsModel,   // replace with your department model name
+    select: "name description" // choose the fields you want
+  }
+}) .lean(); // Convert documents to plain JavaScript objects
+
+  // If lastTransaction is an array, you can access the first element like this
+  const invoiceData = lastTransaction;
+  
+  // console.log(invoiceData);
+  console.log('invoiceData.UserDetails',invoiceData);
+ 
+
+  const formatDate = (dateString) => {
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  const formatTime = (dateString) => {
+    const options = { hour: "2-digit", minute: "2-digit" };
+    return new Date(dateString).toLocaleTimeString(undefined, options);
+  };
+
+// invoiceData.addProduct.forEach(product => {
+//   product.amount = 30000; // Set your custom amount
+//   product.total = 30000;  // Set your custom total
+// });
+// rec
+
+  console.log('invoiceData',invoiceData)
+ 
+const formatDateToLongString = (dateString)  => {
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
+}
+
+
+  console.log('invoiceData.addProduct',invoiceData.addProduct)
+// Optional helpers if you don't already have them
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+};
+const safe = (v, fallback = '—') => (v ?? fallback);
+const doctordata = invoiceData.addProduct[index];
+// Define the HTML content
+const htmlContent = `
+  <div class="prescription">
+
+    <!-- Header: Doctor & Prescription meta -->
+    <div class="rx-header">
+      <div class="rx-header-left">
+        <h1 class="doc-name">${safe(doctordata?.employee?.data?.username, 'Doctor')}</h1>
+         <div class="doc-contact">
+          <span>Email:</span> ${safe(doctordata?.employee?.data?.email)}
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <span>Phone:</span> ${safe(doctordata?.employee?.data?.phone)}
+        </div>
+      </div>
+      <div class="rx-header-right">
+        <div class="rx-title">PRESCRIPTION</div>
+        <div><b>Prescription No.</b> : #${safe(invoiceData?.orderId, '')}</div>
+        <div><b>Date</b> : ${doctordata?.date}</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Patient details -->
+    <section class="patient">
+      <h2>Patient Details</h2>
+      <div class="grid-2">
+        <div><b>Name:</b> ${safe(invoiceData?.UserDetails?.[0]?.name)}</div>
+        <div><b>Phone:</b> ${safe(invoiceData?.UserDetails?.[0]?.phone)}</div>
+        <div><b>Email:</b> ${safe(invoiceData?.UserDetails?.[0]?.email)}</div>
+        <div><b>Address:</b> ${safe(invoiceData?.UserDetails?.[0]?.address)}</div>
+        <div><b>Age:</b> ${safe(invoiceData?.UserDetails?.[0]?.age)}</div>
+        <div><b>Gender:</b> ${invoiceData?.UserDetails?.[0]?.gender === '1' ? 'Male' : invoiceData?.UserDetails?.[0]?.gender === '2' ? 'Female' : '—'}</div>
+      </div>
+    </section>
+
+    <!-- Diagnosis (if any) -->
+    ${invoiceData?.UserDetails?.[0]?.disease ? `
+      <section class="diagnosis">
+        <h2>Diagnosis</h2>
+        <p>${invoiceData.UserDetails[0].disease}</p>
+      </section>
+    ` : ''}
+
+    <!-- Medicines / Rx -->
+    <section class="rx">
+      <div class="rx-mark">℞</div>
+      <div class="rx-body">
+        <h2>Medications</h2>
+        ${
+          Array.isArray(doctordata?.prescription) && doctordata.prescription.length
+          ? `<ol class="rx-list">
+              ${doctordata.prescription.map(item => `<li>${item}</li>`).join('')}
+            </ol>`
+          : `<p class="muted">No medicines listed.</p>`
+        }
+      </div>
+    </section>
+
+   
+
+    <!-- Attachments / Images -->
+    ${
+      Array.isArray(invoiceData?.images) && invoiceData.images.length
+      ? `
+      <section class="attachments">
+        <h2>Attachments</h2>
+        <div class="img-grid">
+          ${invoiceData.images.map((src, i) => `
+            <a href="${src}" target="_blank" rel="noopener">
+              <img src="${src}" alt="attachment-${i+1}" />
+            </a>
+          `).join('')}
+        </div>
+      </section>
+      ` : ''
+    }
+
+    <!-- Doctor signature -->
+    <section class="sign-row">
+      <div class="sign-box">
+        <div class="sign-line" >  
+        </div>
+        <div class="sign-label">${safe(doctordata?.employee?.data?.username, 'Doctor')}</div>
       </div>
  
     </section>

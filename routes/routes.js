@@ -141,6 +141,7 @@ router.get('/admin/all-report', getAllOrderAdmin);
 router.get("/user-invoice/:id", generateUserInvoicePDFView);
 router.get("/user-prescription/:id", generateUserprescriptionPDFView);
 router.get("/user-invoice/:id/:rec", generateUserInvoicePDFView);
+router.get("/user-prescription/:id/:index", generateUserprescriptionPDFView);
 
 
 // user Admin
